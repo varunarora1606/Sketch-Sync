@@ -3,6 +3,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 
 const app: Express = express();
+console.log("Express");
 
 app.use(
   cors({
@@ -16,7 +17,9 @@ app.use(cookieParser());
 
 // Routes import
 import userRouter from "./routes/user.routes";
+import roomRouter from "./routes/room.routes";
 
 app.use("/api/v1/user", userRouter);
+app.use("/api/v1/room", roomRouter);
 
 export { app };

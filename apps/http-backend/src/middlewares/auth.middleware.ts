@@ -2,12 +2,12 @@ import { NextFunction, Request } from "express";
 import { asyncHandler } from "../utils/asyncHandler";
 import { ApiError } from "../utils/ApiError";
 import jwt, { JwtPayload } from "jsonwebtoken";
-// import { User } from "../models/user.model";
+import { User } from "@repo/db/client";
 
 declare global {
   namespace Express {
     interface Request {
-      user?: InstanceType<typeof User>;
+      user?: any;
     }
   }
 }
@@ -24,7 +24,10 @@ const verifyJWT = asyncHandler(async (req: Request, _, next: NextFunction) => {
     process.env.JWT_SECRET as string
   ) as JwtPayload;
 
-  const user = await User.findById(decodedToken._id).select("-token -password");
+  const user = await User.findFirst({
+    where: { id: decodedToken.id },
+    select: { email: true, name: true, id: true },
+  });
 
   if (!user) {
     throw new ApiError(404, "User not found");
