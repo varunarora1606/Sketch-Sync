@@ -17,6 +17,8 @@ model User{
   chats     Chat[]
 }
 
+
+// TODO: Room should have a "uuid" id which will also be used as slug and instead of slug name it "name"
 model Room {
   id        Int       @id @default(autoincrement())
   slug      String    @unique
