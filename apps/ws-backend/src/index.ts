@@ -12,28 +12,28 @@ wss.on("connection", (ws, request) => {
   console.log(url);
   const token = new URLSearchParams(url.split("?")[1]).get("token") || "";
   console.log(token);
-  const decodedToken = jwt.verify(
-    token,
-    "5643aschvbSX"
-  );
-  if (
-    typeof decodedToken == "string" ||
-    !decodedToken.id ||
-    !decodedToken
-  ) {
+  const decodedToken = jwt.verify(token, "5643aschvbSX");
+  if (typeof decodedToken == "string" || !decodedToken.id || !decodedToken) {
     ws.close();
     return;
   }
   ws.on("message", (data) => {
-    if(typeof data !== "string") return
-    const { type, payload } = JSON.parse(data);
+    const { type, payload } = JSON.parse(data.toString());
     switch (type) {
       case "SUBSCRIBE":
         if (!rooms.get(payload.roomId)) {
           rooms.set(payload.roomId, new Map());
         }
         rooms.get(payload.roomId)?.set(ws, decodedToken.UserId);
-        ws.send("Subscribed room successfully")
+        ws.send(
+          JSON.stringify({
+            type: "SUBSCRIBE",
+            payload: {
+              senderId: decodedToken.id,
+              roomId: payload.roomId,
+            },
+          })
+        );
         break;
 
       case "UNSUBSCRIBE":
@@ -41,25 +41,33 @@ wss.on("connection", (ws, request) => {
         if (!room) break;
         room.delete(ws);
         if (room.size == 0) rooms.delete(payload.roomId);
-        ws.send("Unsubscribed room successfully")
+        ws.send(
+          JSON.stringify({
+            type: "UNSUBSCRIBE",
+            payload: {
+              senderId: decodedToken.id,
+              roomId: payload.roomId,
+            },
+          })
+        );
         break;
 
-      case "chat":
+      case "CHAT":
         const users = rooms.get(payload.roomId);
-        console.log("chat")
         if (users?.has(ws)) {
-          console.log("chat")
           users.forEach((_, socket) => {
             socket.send(
               JSON.stringify({
-                senderId: decodedToken.id,
-                roomId: payload.roomId,
-                message: payload.message,
+                type: "CHAT",
+                payload: {
+                  senderId: decodedToken.id,
+                  roomId: payload.roomId,
+                  message: payload.message,
+                },
               })
             );
           });
         }
-
         break;
 
       default:
