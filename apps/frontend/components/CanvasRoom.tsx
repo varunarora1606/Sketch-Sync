@@ -2,15 +2,16 @@
 import { useEffect, useRef, useState } from "react";
 import Canvas from "./Canvas";
 import { WS_Url } from "@/app/config";
+import ToolKit from "./ToolKit";
 
 function CanvasRoom({ roomId }: { roomId: string }) {
   const socket = useRef<WebSocket>(null);
-  const [isClient, setIsClient] = useState(false)
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
-    setIsClient(true)
+    setIsClient(true);
     const ws = new WebSocket(`${WS_Url}`);
-    socket.current = ws
+    socket.current = ws;
     ws.onopen = () => {
       ws.send(
         JSON.stringify({
