@@ -61,13 +61,15 @@ wss.on("connection", (ws, request) => {
         });
         break;
 
+      case "TEMP_CHAT":
+      case "UPDATE_ELEMENT":
       case "CHAT":
         if (room?.has(ws)) {
           room.forEach((_, socket) => {
             if (socket != ws) {
               socket.send(
                 JSON.stringify({
-                  type: "CHAT",
+                  type,
                   payload: {
                     senderId: decodedToken.id,
                     roomId: payload.roomId,
