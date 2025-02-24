@@ -93,7 +93,6 @@ function Canvas({ roomId, ws }: { roomId: string; ws: WebSocket }) {
       ctx.stroke();
     } else if (currentShape === "pencil") {
       ctx.beginPath();
-      ctx.moveTo(startScreen.x, startScreen.y);
       points.forEach(({ x, y }) => {
         const screenPoints = worldToScreen(x, y);
         ctx.lineTo(screenPoints.x, screenPoints.y);
@@ -189,14 +188,8 @@ function Canvas({ roomId, ws }: { roomId: string; ws: WebSocket }) {
     });
   };
 
-  function isBetween(number: number, num1: number, num2: number) {
-    return (
-      number >= Math.min(num1, num2) - 3 && number <= Math.max(num1, num2) + 3
-    );
-  }
-
-  const isOnBorder = (element: Element, x: number, y: number) => {
-    const tolerance = 5; // Adjust as needed, or make it dynamic
+  function isOnBorder(element: Element, x: number, y: number): boolean {
+    const tolerance = 6; // Adjust as needed
     const startScreen = worldToScreen(
       element.dimension.startX,
       element.dimension.startY
@@ -206,14 +199,19 @@ function Canvas({ roomId, ws }: { roomId: string; ws: WebSocket }) {
       element.dimension.endY
     );
 
-    const isBetween = (val, a, b) =>
-      val >= Math.min(a, b) - tolerance && val <= Math.max(a, b) + tolerance;
+    function isInBetween(number: number, num1: number, num2: number) {
+      return (
+        number >= Math.min(num1, num2) - 3 && number <= Math.max(num1, num2) + 3
+      );
+    }
+
+    const isBetween = (val: number, target: number, range: number) =>
+      Math.abs(val - target) <= range;
 
     if (
-      shape === "selection" &&
-      element === newSelectedElem &&
-      isBetween(x, startScreen.x, endScreen.x) &&
-      isBetween(y, startScreen.y, endScreen.y)
+      isInBetween(x, startScreen.x, endScreen.x) &&
+      isInBetween(y, startScreen.y, endScreen.y) &&
+      element === newSelectedElem
     ) {
       return true;
     }
@@ -222,36 +220,50 @@ function Canvas({ roomId, ws }: { roomId: string; ws: WebSocket }) {
       case "rect":
       case "square":
         return (
-          (isBetween(x, startScreen.x, endScreen.x) &&
-            (isBetween(y, startScreen.y, startScreen.y) ||
-              isBetween(y, endScreen.y, endScreen.y))) ||
-          (isBetween(y, startScreen.y, endScreen.y) &&
-            (isBetween(x, startScreen.x, startScreen.x) ||
-              isBetween(x, endScreen.x, endScreen.x)))
+          ((isInBetween(startScreen.x - x, 3, -3) ||
+            isInBetween(endScreen.x - x, 3, -3)) &&
+            isInBetween(y, startScreen.y, endScreen.y)) ||
+          ((isInBetween(startScreen.y - y, 3, -3) ||
+            isInBetween(endScreen.y - y, 3, -3)) &&
+            isInBetween(x, startScreen.x, endScreen.x))
         );
-        case "ellipse":
-          // const centerX = (startScreen.x + endScreen.x) / 2;
-          // const centerY = (startScreen.y + endScreen.y) / 2;
-          // const radiusX = Math.abs(endScreen.x - startScreen.x) / 2;
-          // const radiusY = Math.abs(endScreen.y - startScreen.y) / 2;
-          // const dx = x - centerX;
-          // const dy = y - centerY;
-          // const ellipseEquation = (dx * dx) / (radiusX * radiusX) + (dy * dy) / (radiusY * radiusY);
-          // return isBetween(ellipseEquation, 1, 1);
+      case "ellipse":
+        const centerX = (startScreen.x + endScreen.x) / 2;
+        const centerY = (startScreen.y + endScreen.y) / 2;
+        const rx = Math.abs(endScreen.x - startScreen.x) / 2;
+        const ry = Math.abs(endScreen.y - startScreen.y) / 2;
+
+        if (rx === 0 || ry === 0) {
+          return false;
+        }
+
+        const dx = x - centerX;
+        const dy = y - centerY;
+
+        const ellipseEquation = (dx * dx) / (rx * rx) + (dy * dy) / (ry * ry);
+
+        const distance = Math.abs(ellipseEquation - 1);
+        return distance <= (tolerance / Math.max(rx, ry)) * 5; // Scale tolerance by ellipse size
       case "circle":
-          const centerXCircle = (startScreen.x + endScreen.x) / 2;
-          const centerYCircle = (startScreen.y + endScreen.y) / 2;
-          const radiusCircle = Math.max(Math.abs(endScreen.x - startScreen.x), Math.abs(endScreen.y - startScreen.y)) / 2;
-          const dxCircle = x - centerXCircle;
-          const dyCircle = y - centerYCircle;
-          const distanceCircle = Math.sqrt(dxCircle * dxCircle + dyCircle * dyCircle);
-          return isBetween(distanceCircle, radiusCircle, radiusCircle);
+        const centerXCircle = (startScreen.x + endScreen.x) / 2;
+        const centerYCircle = (startScreen.y + endScreen.y) / 2;
+        const radiusCircle =
+          Math.max(
+            Math.abs(endScreen.x - startScreen.x),
+            Math.abs(endScreen.y - startScreen.y)
+          ) / 2;
+        const dxCircle = x - centerXCircle;
+        const dyCircle = y - centerYCircle;
+        const distanceCircle = Math.sqrt(
+          dxCircle * dxCircle + dyCircle * dyCircle
+        );
+        return isBetween(distanceCircle, radiusCircle, tolerance);
       case "pencil":
         return element.dimension.points.some((point) => {
           const pointScreen = worldToScreen(point.x, point.y);
           return (
-            isBetween(x, pointScreen.x, pointScreen.x) &&
-            isBetween(y, pointScreen.y, pointScreen.y)
+            isBetween(x, pointScreen.x, tolerance) &&
+            isBetween(y, pointScreen.y, tolerance)
           );
         });
       case "line":
@@ -260,7 +272,7 @@ function Canvas({ roomId, ws }: { roomId: string; ws: WebSocket }) {
       default:
         return false;
     }
-  };
+  }
 
   const sendWS = (type: string, message: any) => {
     ws.send(
@@ -307,13 +319,11 @@ function Canvas({ roomId, ws }: { roomId: string; ws: WebSocket }) {
           // const oldElement = payload.message.oldElement
           const newElements = elements.map((element) => {
             if (element.id == payload.message.oldElement.id) {
-              console.log("hello");
               return {
                 ...payload.message.newElement, // Spread new element properties
                 dimension: { ...payload.message.newElement.dimension }, // Spread new dimension properties
               };
             }
-            // console.log(payload.message)
             return element;
           });
           setElements(newElements);
@@ -367,10 +377,11 @@ function Canvas({ roomId, ws }: { roomId: string; ws: WebSocket }) {
       points = [];
     };
 
+    let lastMoveTime = 0;
+    const MoveThrottle = 16; // ~60fps
     const handleMouseMove = (e: MouseEvent) => {
       if (shape === "selection" && !initialSelectPnt) {
         let isOnShape = false;
-        // console.log(isSelected);
         elements.forEach((element) => {
           if (isOnBorder(element, e.pageX, e.pageY)) {
             isOnShape = true;
@@ -380,6 +391,9 @@ function Canvas({ roomId, ws }: { roomId: string; ws: WebSocket }) {
         });
         if (!isOnShape) canvas.style.cursor = "default";
       }
+      const now = performance.now();
+      if (now - lastMoveTime < MoveThrottle) return;
+      lastMoveTime = now;
       if (shape === "selection" && isSelected && initialSelectPnt) {
         const pos = screenToWorld(e.pageX, e.pageY);
         let oldElement = newSelectedElem;
@@ -396,12 +410,14 @@ function Canvas({ roomId, ws }: { roomId: string; ws: WebSocket }) {
                   isSelected.dimension.startY + (pos.y - initialSelectPnt.y),
                 endX: isSelected.dimension.endX + (pos.x - initialSelectPnt.x),
                 endY: isSelected.dimension.endY + (pos.y - initialSelectPnt.y),
+                points: isSelected.dimension.points.map((point) => {
+                  return {
+                    x: point.x + (pos.x - initialSelectPnt.x),
+                    y: point.y + (pos.y - initialSelectPnt.y),
+                  };
+                }),
               },
             };
-            console.log("isSelected: ", isSelected);
-            console.log("initialSelectPnt: ", initialSelectPnt);
-            console.log("newSelectedElem: ", newSelectedElem);
-            console.log("e: ", e.pageX, e.pageY);
             setNewSelectedElem(newElement);
             return newElement;
           }
@@ -464,6 +480,8 @@ function Canvas({ roomId, ws }: { roomId: string; ws: WebSocket }) {
           endWorld.y = startWorld.y + Math.sign(height) * absSide;
         } else if (currentShape === "pencil") {
           points.forEach((point) => {
+            startWorld.x = Math.min(point.x, startWorld.x);
+            startWorld.y = Math.min(point.y, startWorld.y);
             endWorld.x = Math.max(point.x, endWorld.x);
             endWorld.y = Math.max(point.y, endWorld.y);
           });
@@ -513,6 +531,13 @@ function Canvas({ roomId, ws }: { roomId: string; ws: WebSocket }) {
           },
         };
         sendWS("TEMP_CHAT", message);
+      } else if (e.key === "Backspace" || e.key === "Delete") {
+        const newElements = elements.filter((element) => {
+          if(element != newSelectedElem) return true;
+          return false;
+        })
+        setElements(newElements)
+        setNewSelectedElem(null)
       }
     };
 
@@ -591,19 +616,19 @@ function Canvas({ roomId, ws }: { roomId: string; ws: WebSocket }) {
     };
 
     window.addEventListener("wheel", handleWheel, { passive: false });
-    canvas.addEventListener("mousedown", handleMouseDown);
-    canvas.addEventListener("mousemove", handleMouseMove);
-    canvas.addEventListener("mouseup", handleMouseUpAndOut);
-    canvas.addEventListener("mouseout", handleMouseUpAndOut);
+    window.addEventListener("mousedown", handleMouseDown);
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUpAndOut);
+    // window.addEventListener("mouseout", handleMouseUpAndOut);
     window.addEventListener("keydown", handleShiftDown);
     window.addEventListener("keyup", handleShiftUp);
 
     return () => {
       window.removeEventListener("wheel", handleWheel);
-      canvas.removeEventListener("mousedown", handleMouseDown);
-      canvas.removeEventListener("mousemove", handleMouseMove);
-      canvas.removeEventListener("mouseup", handleMouseUpAndOut);
-      canvas.removeEventListener("mouseout", handleMouseUpAndOut);
+      window.removeEventListener("mousedown", handleMouseDown);
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUpAndOut);
+      // window.removeEventListener("mouseout", handleMouseUpAndOut);
       window.removeEventListener("keydown", handleShiftDown);
       window.removeEventListener("keyup", handleShiftUp);
     };
