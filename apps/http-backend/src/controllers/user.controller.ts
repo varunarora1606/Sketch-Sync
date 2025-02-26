@@ -46,6 +46,7 @@ const signInUser = asyncHandler(async (req: Request, res: Response) => {
     },
     process.env.JWT_SECRET as string
   );
+
   res
     .status(200)
     .cookie("token", token, options)

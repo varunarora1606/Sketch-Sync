@@ -4,9 +4,10 @@ import { motion } from "framer-motion";
 import { User, Lock, Mail, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import axios from "axios";
-import { redirect } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 const Auth = () => {
+  const router = useRouter()
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -18,8 +19,7 @@ const Auth = () => {
   });
 
   const handleChangeUsername = (e: ChangeEvent<HTMLInputElement>) => {
-    if (!/^[a-zA-Z0-9_.-]*$/.test(e.target.value)) {
-    } else if (e.target.value.length < 5) {
+    if (e.target.value.length < 5) {
       setErrors({
         username: "Username should be atleast 5 characters long",
         password: errors.password,
@@ -43,10 +43,10 @@ const Auth = () => {
         password: "Password must contain atleast one alphabet",
       });
     } else if (!/\d/.test(e.target.value)) {
-      setErrors({
-        username: errors.username,
-        password: "Password must contain atleast one number",
-      });
+      // setErrors({
+      //   username: errors.username,
+      //   password: "Password must contain atleast one number",
+      // });
     } else {
       setErrors({
         username: errors.username,
@@ -77,9 +77,13 @@ const Auth = () => {
         {
           email: usernameRef.current?.value,
           password: passwordRef.current?.value,
-        }
+        }, { withCredentials: true } 
       );
-      if (response.status === 403) console.log("Wrong password or username");
+      // console.log(response);
+      if (response.status === 403) {
+        console.log("Wrong password or username");
+        return;
+      }
     } else {
       const response = await axios.post(
         "http://localhost:8000/api/v1/user/signup",
@@ -87,19 +91,25 @@ const Auth = () => {
           name: "Varun",
           email: usernameRef.current?.value,
           password: passwordRef.current?.value,
-        }
+        }, { withCredentials: true } 
       );
-      if (response.status === 400) console.log("User already exist");
+      // console.log(response);
+      if (response.status === 400) {
+        console.log("User already exist");
+        return;
+      }
     }
-    redirect("/room/1");
+    router.push("/room/1");
   };
 
   useEffect(() => {
     axios
-      .get("http://localhost:8000/api/v1/user/auth-check")
-      .then(() => redirect("/room/1"))
+      .get("http://localhost:8000/api/v1/user/auth-check", { withCredentials: true })
+      .then((data) => {
+        console.log(data)
+        router.push("/room/1")
+      })
       .catch((e) => console.log(e));
-    console.log("hello");
   }, []);
 
   return (
