@@ -3,7 +3,7 @@ import useSize from "@/hooks/useSize";
 import { useEffect, useRef, useState } from "react";
 import ToolKit from "./ToolKit";
 
-type Shape = "rect" | "ellipse" | "pencil" | "line" | "selection";
+type Shape = "rect" | "ellipse" | "pencil" | "line" | "selection" | "eraser";
 type CurrentShape = Shape | "circle" | "square";
 
 interface Element {
@@ -17,6 +17,8 @@ interface Element {
     points: { x: number; y: number }[];
   };
 }
+
+// TODO: erasor And improve drag by filter
 
 function Canvas({ roomId, ws }: { roomId: string; ws: WebSocket }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -65,6 +67,7 @@ function Canvas({ roomId, ws }: { roomId: string; ws: WebSocket }) {
     const absHeight = Math.abs(height);
     ctx.lineWidth = 2 * zoom;
 
+    ctx.beginPath();
     if (currentShape === "rect") {
       ctx.strokeRect(startScreen.x, startScreen.y, width, height);
     } else if (currentShape === "square") {
@@ -80,25 +83,24 @@ function Canvas({ roomId, ws }: { roomId: string; ws: WebSocket }) {
       const absRadiusY = absHeight / 2;
       const centerX = startScreen.x + Math.sign(width) * absRadiusX;
       const centerY = startScreen.y + Math.sign(height) * absRadiusY;
-      ctx.beginPath();
       ctx.ellipse(centerX, centerY, absRadiusX, absRadiusY, 0, 0, Math.PI * 2);
-      ctx.stroke();
     } else if (currentShape === "circle") {
       const absRadius = Math.max(absWidth, absHeight) / 2;
       const centerX = startScreen.x + Math.sign(width) * absRadius;
       const centerY = startScreen.y + Math.sign(height) * absRadius;
-      ctx.beginPath();
       ctx.arc(centerX, centerY, absRadius, 0, Math.PI * 2);
-      ctx.closePath();
-      ctx.stroke();
     } else if (currentShape === "pencil") {
-      ctx.beginPath();
+      ctx.lineWidth = 4 * zoom;
       points.forEach(({ x, y }) => {
         const screenPoints = worldToScreen(x, y);
         ctx.lineTo(screenPoints.x, screenPoints.y);
       });
-      ctx.stroke();
+    } else if (currentShape === "line") {
+      ctx.moveTo(startScreen.x, startScreen.y);
+      ctx.lineTo(endScreen.x, endScreen.y);
     }
+    // ctx.closePath();
+    ctx.stroke();
   };
 
   const selectDraw = (element: Element) => {
@@ -201,18 +203,69 @@ function Canvas({ roomId, ws }: { roomId: string; ws: WebSocket }) {
 
     function isInBetween(number: number, num1: number, num2: number) {
       return (
-        number >= Math.min(num1, num2) - 3 && number <= Math.max(num1, num2) + 3
+        number >= Math.min(num1, num2) - tolerance &&
+        number <= Math.max(num1, num2) + tolerance
       );
     }
 
     const isBetween = (val: number, target: number, range: number) =>
       Math.abs(val - target) <= range;
 
-    if (
-      isInBetween(x, startScreen.x, endScreen.x) &&
-      isInBetween(y, startScreen.y, endScreen.y) &&
-      element === newSelectedElem
+    function isPointOnLine(
+      pointX: number,
+      pointY: number,
+      lineStartX: number,
+      lineStartY: number,
+      lineEndX: number,
+      lineEndY: number
     ) {
+      // Calculate the distance between the point and the line
+      const dx = lineEndX - lineStartX;
+      const dy = lineEndY - lineStartY;
+
+      if (dx === 0 && dy === 0) {
+        // Line is a point
+        return (
+          Math.abs(pointX - lineStartX) < tolerance &&
+          Math.abs(pointY - lineStartY) < tolerance
+        );
+      }
+
+      const t =
+        ((pointX - lineStartX) * dx + (pointY - lineStartY) * dy) /
+        (dx * dx + dy * dy);
+
+      if (t < 0 || t > 1) {
+        // Point is outside the line segment
+        const distToStart = Math.sqrt(
+          (pointX - lineStartX) ** 2 + (pointY - lineStartY) ** 2
+        );
+        const distToEnd = Math.sqrt(
+          (pointX - lineEndX) ** 2 + (pointY - lineEndY) ** 2
+        );
+        return Math.min(distToStart, distToEnd) < tolerance; // Check distance to endpoints
+      }
+
+      const closestX = lineStartX + t * dx;
+      const closestY = lineStartY + t * dy;
+
+      const distance = Math.sqrt(
+        (pointX - closestX) ** 2 + (pointY - closestY) ** 2
+      );
+
+      return distance < tolerance;
+    }
+
+    if (
+      !(
+        isInBetween(x, startScreen.x, endScreen.x) &&
+        isInBetween(y, startScreen.y, endScreen.y)
+      )
+    ) {
+      return false;
+    }
+
+    if (element === newSelectedElem) {
       return true;
     }
 
@@ -259,16 +312,30 @@ function Canvas({ roomId, ws }: { roomId: string; ws: WebSocket }) {
         );
         return isBetween(distanceCircle, radiusCircle, tolerance);
       case "pencil":
-        return element.dimension.points.some((point) => {
+        const points = element.dimension.points;
+        let startPoint = worldToScreen(points[0].x, points[0].y);
+        return points.some((point) => {
           const pointScreen = worldToScreen(point.x, point.y);
-          return (
-            isBetween(x, pointScreen.x, tolerance) &&
-            isBetween(y, pointScreen.y, tolerance)
+          const ans = isPointOnLine(
+            x,
+            y,
+            pointScreen.x,
+            pointScreen.y,
+            startPoint.x,
+            startPoint.y
           );
+          startPoint = pointScreen;
+          return ans;
         });
       case "line":
-        // Add line logic here
-        return false;
+        return isPointOnLine(
+          x,
+          y,
+          startScreen.x,
+          startScreen.y,
+          endScreen.x,
+          endScreen.y
+        );
       default:
         return false;
     }
@@ -316,17 +383,23 @@ function Canvas({ roomId, ws }: { roomId: string; ws: WebSocket }) {
           );
           break;
         case "UPDATE_ELEMENT":
-          // const oldElement = payload.message.oldElement
-          const newElements = elements.map((element) => {
-            if (element.id == payload.message.oldElement.id) {
-              return {
-                ...payload.message.newElement, // Spread new element properties
-                dimension: { ...payload.message.newElement.dimension }, // Spread new dimension properties
-              };
-            }
-            return element;
-          });
-          setElements(newElements);
+          setElements(
+            elements.map((element) => {
+              if (element.id == payload.message.oldElement.id) {
+                return payload.message.newElement;
+              }
+              return element;
+            })
+          );
+          break;
+        case "ERASE":
+          setElements(
+            elements.filter((element) => {
+              return !payload.message.some((dltElm: Element) => {
+                return dltElm.id === element.id;
+              });
+            })
+          );
           break;
         default:
           break;
@@ -350,6 +423,8 @@ function Canvas({ roomId, ws }: { roomId: string; ws: WebSocket }) {
     let currentShape: CurrentShape = shape;
     let startWorld: { x: number; y: number };
     let endWorld: { x: number; y: number };
+    let erasedElements: Element[];
+    let unErasedElements: Element[];
 
     const handleMouseDown = (e: MouseEvent) => {
       if (shape === "selection") {
@@ -375,6 +450,8 @@ function Canvas({ roomId, ws }: { roomId: string; ws: WebSocket }) {
       startX = e.pageX;
       startY = e.pageY;
       points = [];
+      erasedElements = [];
+      unErasedElements = elements;
     };
 
     let lastMoveTime = 0;
@@ -390,6 +467,16 @@ function Canvas({ roomId, ws }: { roomId: string; ws: WebSocket }) {
           }
         });
         if (!isOnShape) canvas.style.cursor = "default";
+      }
+      if (shape === "eraser" && isDrawing) {
+        unErasedElements = unErasedElements.filter((element) => {
+          if (isOnBorder(element, e.pageX, e.pageY)) {
+            console.log(element);
+            erasedElements.push(element);
+            return false;
+          }
+          return true;
+        });
       }
       const now = performance.now();
       if (now - lastMoveTime < MoveThrottle) return;
@@ -464,8 +551,12 @@ function Canvas({ roomId, ws }: { roomId: string; ws: WebSocket }) {
     const handleMouseUpAndOut = (e: MouseEvent) => {
       if (shape === "selection") {
         setInitialSelectPnt(null);
-      }
-      if (isDrawing) {
+      } else if (shape === "eraser" && isDrawing) {
+        console.log(unErasedElements)
+        setElements(unErasedElements);
+        sendWS("ERASE", erasedElements);
+        isDrawing = false;
+      } else if (isDrawing) {
         const endX = e.pageX;
         const endY = e.pageY;
         startWorld = screenToWorld(startX, startY);
@@ -500,6 +591,9 @@ function Canvas({ roomId, ws }: { roomId: string; ws: WebSocket }) {
         setElements((prev) => [...prev, message]);
         sendWS("CHAT", message);
         isDrawing = false;
+        if(shape === "ellipse" || shape === "rect" || shape === "line") {
+          setShape("selection")
+        }
       }
     };
 
@@ -511,6 +605,7 @@ function Canvas({ roomId, ws }: { roomId: string; ws: WebSocket }) {
           currentShape = "square";
         }
         if (!isDrawing) return;
+        if(!startWorld || !endWorld) return;
         reDraw();
         draw(
           startWorld.x,
@@ -533,11 +628,11 @@ function Canvas({ roomId, ws }: { roomId: string; ws: WebSocket }) {
         sendWS("TEMP_CHAT", message);
       } else if (e.key === "Backspace" || e.key === "Delete") {
         const newElements = elements.filter((element) => {
-          if(element != newSelectedElem) return true;
+          if (element != newSelectedElem) return true;
           return false;
-        })
-        setElements(newElements)
-        setNewSelectedElem(null)
+        });
+        setElements(newElements);
+        setNewSelectedElem(null);
       }
     };
 
@@ -545,6 +640,7 @@ function Canvas({ roomId, ws }: { roomId: string; ws: WebSocket }) {
       if (e.key === "Shift") {
         currentShape = shape;
         if (!isDrawing) return;
+        if(!startWorld || !endWorld) return;
         reDraw();
         draw(
           startWorld.x,
@@ -616,7 +712,7 @@ function Canvas({ roomId, ws }: { roomId: string; ws: WebSocket }) {
     };
 
     window.addEventListener("wheel", handleWheel, { passive: false });
-    window.addEventListener("mousedown", handleMouseDown);
+    canvas.addEventListener("mousedown", handleMouseDown);
     window.addEventListener("mousemove", handleMouseMove);
     window.addEventListener("mouseup", handleMouseUpAndOut);
     // window.addEventListener("mouseout", handleMouseUpAndOut);
@@ -625,7 +721,7 @@ function Canvas({ roomId, ws }: { roomId: string; ws: WebSocket }) {
 
     return () => {
       window.removeEventListener("wheel", handleWheel);
-      window.removeEventListener("mousedown", handleMouseDown);
+      canvas.removeEventListener("mousedown", handleMouseDown);
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUpAndOut);
       // window.removeEventListener("mouseout", handleMouseUpAndOut);
@@ -658,6 +754,9 @@ function Canvas({ roomId, ws }: { roomId: string; ws: WebSocket }) {
             setShape={setShape}
             setNewSelectedElem={setNewSelectedElem}
             canvas={canvasRef.current}
+            setZoom={setZoom}
+            zoom={zoom}
+            setPan={setPan}
           />
         </div>
       </div>

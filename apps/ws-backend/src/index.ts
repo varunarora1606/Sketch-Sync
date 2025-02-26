@@ -63,6 +63,7 @@ wss.on("connection", (ws, request) => {
 
       case "TEMP_CHAT":
       case "UPDATE_ELEMENT":
+      case "ERASE":
       case "CHAT":
         if (room?.has(ws)) {
           room.forEach((_, socket) => {
