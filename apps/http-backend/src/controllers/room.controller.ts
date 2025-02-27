@@ -14,4 +14,11 @@ const createRoom = asyncHandler(async (req: Request, res: Response) => {
   res.status(200).json(new ApiResponse(200, room, "room created successfully"));
 });
 
-export { createRoom };
+const getRooms = asyncHandler(async (req: Request, res: Response) => {
+  const user = req.user;
+  const room = await Room.findMany({ where: { userId: user.id } });
+
+  res.status(200).json(new ApiResponse(200, room, "rooms fetched successfully"));
+});
+
+export { createRoom, getRooms };
