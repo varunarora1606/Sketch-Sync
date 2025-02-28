@@ -87,4 +87,7 @@ wss.on("connection", (ws, request) => {
         break;
     }
   });
+  ws.on('close', () => {
+    // TODO: Add close ws logic
+  })
 });
