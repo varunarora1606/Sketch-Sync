@@ -2,21 +2,11 @@
 import useSize from "@/hooks/useSize";
 import { useEffect, useRef, useState } from "react";
 import ToolKit from "./ToolKit";
+import { Element, Shape } from "@/types";
 
-type Shape = "rect" | "ellipse" | "pencil" | "line" | "selection" | "eraser";
 type CurrentShape = Shape | "circle" | "square";
 
-interface Element {
-  id: string;
-  shape: CurrentShape;
-  dimension: {
-    startX: number;
-    startY: number;
-    endX: number;
-    endY: number;
-    points: { x: number; y: number }[];
-  };
-}
+
 
 // TODO: erasor And improve drag by filter
 
@@ -27,7 +17,7 @@ function Canvas({ roomId, ws }: { roomId: string; ws: WebSocket }) {
   const [pan, setPan] = useState({ X: 0, Y: 0 });
   const [zoom, setZoom] = useState(1);
   const [isSelected, setIsSelected] = useState<Element | null>();
-  const [newSelectedElem, setNewSelectedElem] = useState<Element | null>();
+  const [newSelectedElem, setNewSelectedElem] = useState<Element | null>(null);
   const [initialSelectPnt, setInitialSelectPnt] = useState<{
     x: number;
     y: number;
@@ -425,6 +415,7 @@ function Canvas({ roomId, ws }: { roomId: string; ws: WebSocket }) {
     let endWorld: { x: number; y: number };
     let erasedElements: Element[];
     let unErasedElements: Element[];
+    let newElement: Element | null;
 
     const handleMouseDown = (e: MouseEvent) => {
       if (shape === "selection") {
@@ -471,7 +462,6 @@ function Canvas({ roomId, ws }: { roomId: string; ws: WebSocket }) {
       if (shape === "eraser" && isDrawing) {
         unErasedElements = unErasedElements.filter((element) => {
           if (isOnBorder(element, e.pageX, e.pageY)) {
-            console.log(element);
             erasedElements.push(element);
             return false;
           }
@@ -484,7 +474,6 @@ function Canvas({ roomId, ws }: { roomId: string; ws: WebSocket }) {
       if (shape === "selection" && isSelected && initialSelectPnt) {
         const pos = screenToWorld(e.pageX, e.pageY);
         let oldElement = newSelectedElem;
-        let newElement;
         const newElements = elements.map((element) => {
           if (element === newSelectedElem) {
             newElement = {
@@ -548,11 +537,18 @@ function Canvas({ roomId, ws }: { roomId: string; ws: WebSocket }) {
       }
     };
 
-    const handleMouseUpAndOut = (e: MouseEvent) => {
-      if (shape === "selection") {
+    const handleMouseUp = (e: MouseEvent) => {
+      if (shape === "selection" && isSelected && initialSelectPnt) {
+        if (!newElement) {
+          newElement = newSelectedElem;
+        }
+        const message = {
+          deleteElement: isSelected,
+          newElement,
+        };
+        sendWS("CHANGE_ELEMENT", message);
         setInitialSelectPnt(null);
       } else if (shape === "eraser" && isDrawing) {
-        console.log(unErasedElements)
         setElements(unErasedElements);
         sendWS("ERASE", erasedElements);
         isDrawing = false;
@@ -578,7 +574,7 @@ function Canvas({ roomId, ws }: { roomId: string; ws: WebSocket }) {
           });
         }
         const message = {
-          id: `${Date.now()}_${Math.random()}`,
+          id: `${Date.now()}+${Math.random()}`,
           shape: currentShape,
           dimension: {
             startX: startWorld.x,
@@ -591,8 +587,8 @@ function Canvas({ roomId, ws }: { roomId: string; ws: WebSocket }) {
         setElements((prev) => [...prev, message]);
         sendWS("CHAT", message);
         isDrawing = false;
-        if(shape === "ellipse" || shape === "rect" || shape === "line") {
-          setShape("selection")
+        if (shape === "ellipse" || shape === "rect" || shape === "line") {
+          setShape("selection");
         }
       }
     };
@@ -605,7 +601,7 @@ function Canvas({ roomId, ws }: { roomId: string; ws: WebSocket }) {
           currentShape = "square";
         }
         if (!isDrawing) return;
-        if(!startWorld || !endWorld) return;
+        if (!startWorld || !endWorld) return;
         reDraw();
         draw(
           startWorld.x,
@@ -640,7 +636,7 @@ function Canvas({ roomId, ws }: { roomId: string; ws: WebSocket }) {
       if (e.key === "Shift") {
         currentShape = shape;
         if (!isDrawing) return;
-        if(!startWorld || !endWorld) return;
+        if (!startWorld || !endWorld) return;
         reDraw();
         draw(
           startWorld.x,
@@ -714,8 +710,7 @@ function Canvas({ roomId, ws }: { roomId: string; ws: WebSocket }) {
     window.addEventListener("wheel", handleWheel, { passive: false });
     canvas.addEventListener("mousedown", handleMouseDown);
     window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUpAndOut);
-    // window.addEventListener("mouseout", handleMouseUpAndOut);
+    window.addEventListener("mouseup", handleMouseUp);
     window.addEventListener("keydown", handleShiftDown);
     window.addEventListener("keyup", handleShiftUp);
 
@@ -723,8 +718,7 @@ function Canvas({ roomId, ws }: { roomId: string; ws: WebSocket }) {
       window.removeEventListener("wheel", handleWheel);
       canvas.removeEventListener("mousedown", handleMouseDown);
       window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUpAndOut);
-      // window.removeEventListener("mouseout", handleMouseUpAndOut);
+      window.removeEventListener("mouseup", handleMouseUp);
       window.removeEventListener("keydown", handleShiftDown);
       window.removeEventListener("keyup", handleShiftUp);
     };
@@ -741,7 +735,7 @@ function Canvas({ roomId, ws }: { roomId: string; ws: WebSocket }) {
 
   return (
     <>
-      <div className="relative">
+      <div className="relative text-[#E0DFFF]">
         <div className={`fixed w-full h-full left-0 top-0`}>
           <canvas
             ref={canvasRef}
@@ -749,16 +743,15 @@ function Canvas({ roomId, ws }: { roomId: string; ws: WebSocket }) {
             width={canvasSize?.width || 0}
           />
         </div>
-        <div className="fixed left-0 top-10">
-          <ToolKit
-            setShape={setShape}
-            setNewSelectedElem={setNewSelectedElem}
-            canvas={canvasRef.current}
-            setZoom={setZoom}
-            zoom={zoom}
-            setPan={setPan}
-          />
-        </div>
+        <ToolKit
+          shape={shape}
+          setShape={setShape}
+          setNewSelectedElem={setNewSelectedElem}
+          canvas={canvasRef.current}
+          zoom={zoom}
+          setZoom={setZoom}
+          setPan={setPan}
+        />
       </div>
     </>
   );

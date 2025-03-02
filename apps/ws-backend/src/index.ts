@@ -1,13 +1,16 @@
+// TODO: Handle auth (see chess repo), use redis queue add pubsub and sticky connection logic see if can be made singleton. Complete F.E. And add close logic
+
 import { WebSocket, WebSocketServer } from "ws";
 import jwt from "jsonwebtoken";
+import { createClient } from "redis";
 
+const client = createClient();
 const wss = new WebSocketServer({ port: 8080 });
 
 const rooms = new Map<string, Map<WebSocket, string>>();
 
-// TODO: Add message to database using queue and scale using pub sub
-
 wss.on("connection", (ws, request) => {
+  console.log("hello");
   // const url = request.url || "";
   // console.log(url);
   // const token = new URLSearchParams(url.split("?")[1]).get("token") || "";
@@ -17,77 +20,93 @@ wss.on("connection", (ws, request) => {
   //   ws.close();
   //   return;
   // }
-  const decodedToken = { id: "Varun" };
-  ws.on("message", (data) => {
-    const { type, payload } = JSON.parse(data.toString());
-    const room = rooms.get(payload.roomId);
-    switch (type) {
-      case "SUBSCRIBE":
-        if (!room) {
+  const decodedToken = { id: "2" };
+  ws.on("message", async (data) => {
+    try {
+      const { type, payload } = JSON.parse(data.toString());
+
+      const lPushMessage = async (message: any) => {
+        await client.lPush(
+          "messages",
+          JSON.stringify({
+            message: JSON.stringify(message),
+            roomId: Number(payload.roomId),
+            userId: Number(decodedToken.id),
+          })
+        );
+        console.log("message pushed");
+      };
+      const lPushRemove = async (message: any) => {
+        await client.lPush(
+          "remove",
+          JSON.stringify({
+            message: message,
+            // roomId: Number(payload.roomId),
+            // userId: Number(decodedToken.id),
+          })
+        );
+        console.log("deletedMessages pushed");
+      };
+
+      if (type == "SUBSCRIBE") {
+        if (!rooms.has(payload.roomId)) {
           rooms.set(payload.roomId, new Map());
         }
-        rooms.get(payload.roomId)?.set(ws, decodedToken.id);
-        rooms.get(payload.roomId)?.forEach((_, socket) => {
-          if (socket != ws) {
-            socket.send(
-              JSON.stringify({
-                type: "SUBSCRIBE",
-                payload: {
-                  senderId: decodedToken.id,
-                  roomId: payload.roomId,
-                },
-              })
-            );
-          }
-        });
-        break;
-
-      case "UNSUBSCRIBE":
-        if (!room) break;
+        const room = rooms.get(payload.roomId);
+        if (!room) return;
+        room.set(ws, decodedToken.id);
+      } else if (type === "UNSUBSCRIBE") {
+        const room = rooms.get(payload.roomId);
+        if (!room) return;
         room.delete(ws);
         if (room.size == 0) rooms.delete(payload.roomId);
+      } else if (type == "CHAT") {
+        await lPushMessage(payload.message);
+      } else if (type == "ERASE") {
+        await lPushRemove(payload.message);
+      } else if (type == "CHANGE_ELEMENT") {
+        await lPushMessage(payload.message.newElement);
+        await lPushRemove(payload.message.deleteElement);
+      } else if (type == "UPDATE_ELEMENT") {
+      } else if (type == "TEMP_CHAT") {
+      }
+
+      const room = rooms.get(payload.roomId);
+      if (!room) return;
+      if (room.has(ws) || type === "UNSUBSCRIBE") {
         room.forEach((_, socket) => {
           if (socket != ws) {
             socket.send(
               JSON.stringify({
-                type: "UNSUBSCRIBE",
+                type,
                 payload: {
                   senderId: decodedToken.id,
                   roomId: payload.roomId,
+                  message: payload?.message || "",
                 },
               })
             );
           }
         });
-        break;
-
-      case "TEMP_CHAT":
-      case "UPDATE_ELEMENT":
-      case "ERASE":
-      case "CHAT":
-        if (room?.has(ws)) {
-          room.forEach((_, socket) => {
-            if (socket != ws) {
-              socket.send(
-                JSON.stringify({
-                  type,
-                  payload: {
-                    senderId: decodedToken.id,
-                    roomId: payload.roomId,
-                    message: payload.message,
-                  },
-                })
-              );
-            }
-          });
-        }
-        break;
-
-      default:
-        break;
+      }
+    } catch (error) {
+      console.log("lPush Error: ", error);
     }
   });
-  ws.on('close', () => {
-    // TODO: Add close ws logic
-  })
+  // ws.on("close", () => {
+  //   // TODO: Add close ws logic
+  // });
 });
+
+client.on("error", (err) => {
+  console.log("Redis error: ", err);
+});
+
+(() => {
+  try {
+    client.connect();
+    console.log("Connected to Redis");
+  } catch (error) {
+    console.error("Failed to connect to Redis", error);
+  }
+})();

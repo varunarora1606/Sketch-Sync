@@ -7,10 +7,8 @@ import {
   Clock,
   Trash2,
   Search,
-  Settings,
   LogOut,
   ArrowUpRight,
-  MoreVertical,
 } from "lucide-react";
 import axios from "axios";
 
@@ -120,7 +118,7 @@ const Dashboard = () => {
             </p>
           </div>
           <Link
-            href="/canvas/new"
+            href="/room/1"
             className="bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2"
           >
             <Plus className="w-4 h-4" />
@@ -137,7 +135,7 @@ const Dashboard = () => {
             className="bg-transparent border-2 border-dashed border-border rounded-xl p-6 flex flex-col items-center justify-center text-muted-foreground hover:text-primary hover:border-primary cursor-pointer transition-colors h-64"
           >
             <Link
-              href="/canvas/new"
+              href="/room/1"
               className="flex flex-col items-center justify-center w-full h-full"
             >
               <div className="w-16 h-16 rounded-full bg-background border border-border flex items-center justify-center mb-4">
@@ -224,7 +222,7 @@ const Dashboard = () => {
             )}
             {!searchQuery && (
               <Link
-                href="/canvas/new"
+                href="/room/1"
                 className="mt-4 bg-primary text-primary-foreground px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2"
               >
                 <Plus className="w-4 h-4" />
