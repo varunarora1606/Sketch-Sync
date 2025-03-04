@@ -60,8 +60,9 @@ const logOutUser = asyncHandler(async (_, res: Response) => {
     .json(new ApiResponse(200, {}, "User logged out successfully"));
 });
 
-const authCheck = asyncHandler(async (_, res: Response) => {
-  res.status(200).json(new ApiResponse(200, {}, "User is already logged in"));
+const authCheck = asyncHandler(async (req, res: Response) => {
+  const user = req.user
+  res.status(200).json(new ApiResponse(200, {email: user.email, name: user.name, id: user.id}, "User is already logged in"));
 });
 
 export { signUpUser, signInUser, logOutUser, authCheck };

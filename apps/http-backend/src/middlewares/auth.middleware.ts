@@ -16,7 +16,6 @@ const verifyJWT = asyncHandler(async (req: Request, _, next: NextFunction) => {
   const token = req.cookies?.token;
 
   if (!token) {
-    console.log("here")
     throw new ApiError(401, "Unauthorized user");
   }
 

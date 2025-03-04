@@ -34,10 +34,11 @@ const BATCH_SIZE = 10;
       }
 
       if (removedMessages.length > 0) {
-        console.log(removedMessages)
+        // TODO: You have to make a main level slug for messages otherwise it will slow db searching
+        const messageIds = removedMessages.map((msg) => msg.id);
         const result = await Chat.deleteMany({
           where: {
-            message: { in: removedMessages.map((m) => JSON.stringify(m)) },
+            id: { in: messageIds },
           },
         });
         console.log("result", result);

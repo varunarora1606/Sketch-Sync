@@ -2,6 +2,7 @@ import CanvasRoom from "@/components/CanvasRoom";
 
 const page = async ({ params }: { params: { roomId: string } }) => {
   const roomId = (await params).roomId;
+  console.log(roomId);
   // const response = await axios.get("http://localhost:8000/api/v1/user/auth-check", {
   //     withCredentials: true,
   //   })

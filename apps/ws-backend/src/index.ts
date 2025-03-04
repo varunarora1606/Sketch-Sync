@@ -20,18 +20,20 @@ wss.on("connection", (ws, request) => {
   //   ws.close();
   //   return;
   // }
-  const decodedToken = { id: "2" };
+  const decodedToken = { id: "d0307d57-48f9-409d-bacd-087f87a8e027" };
   ws.on("message", async (data) => {
     try {
       const { type, payload } = JSON.parse(data.toString());
 
       const lPushMessage = async (message: any) => {
+        console.log(payload);
         await client.lPush(
           "messages",
           JSON.stringify({
-            message: JSON.stringify(message),
-            roomId: Number(payload.roomId),
-            userId: Number(decodedToken.id),
+            id: message.id,
+            message: message,
+            roomId: payload.roomId,
+            userId: decodedToken.id,
           })
         );
         console.log("message pushed");
@@ -40,7 +42,7 @@ wss.on("connection", (ws, request) => {
         await client.lPush(
           "remove",
           JSON.stringify({
-            message: message,
+            message,
             // roomId: Number(payload.roomId),
             // userId: Number(decodedToken.id),
           })

@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import axios from "axios";
-import { useRouter } from "next/navigation";
+import { redirect, useRouter } from "next/navigation";
 
 const Auth = () => {
   const router = useRouter();
@@ -135,7 +135,7 @@ const Auth = () => {
         }
       }
 
-      router.push("/dashboard");
+      router.replace("/dashboard");
     } catch (error) {
       console.error("Authentication error:", error);
     } finally {
@@ -144,26 +144,16 @@ const Auth = () => {
   };
 
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const data = await axios.get(
-          "http://localhost:8000/api/v1/user/auth-check",
-          {
-            withCredentials: true,
-          }
-        );
-        router.push("/dashboard");
-      } catch (e) {
-        console.log(e);
-      }
-    };
-
-    checkAuth();
+    axios
+      .get("http://localhost:8000/api/v1/user/auth-check", {
+        withCredentials: true,
+      })
+      .then(() => router.replace("/dashboard"))
+      .catch((error) => console.log("error", error));
   }, [router]);
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden">
-
       <motion.div
         whileHover={{ scale: 1.1 }}
         initial={{ opacity: 0, y: -10 }}

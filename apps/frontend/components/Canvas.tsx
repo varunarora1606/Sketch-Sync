@@ -1,12 +1,12 @@
 "use client";
 import useSize from "@/hooks/useSize";
+import { v4 as uuidv4 } from 'uuid';
 import { useEffect, useRef, useState } from "react";
 import ToolKit from "./ToolKit";
 import { Element, Shape } from "@/types";
+import axios from "axios";
 
 type CurrentShape = Shape | "circle" | "square";
-
-
 
 // TODO: erasor And improve drag by filter
 
@@ -574,7 +574,7 @@ function Canvas({ roomId, ws }: { roomId: string; ws: WebSocket }) {
           });
         }
         const message = {
-          id: `${Date.now()}+${Math.random()}`,
+          id: uuidv4(),
           shape: currentShape,
           dimension: {
             startX: startWorld.x,
@@ -733,6 +733,23 @@ function Canvas({ roomId, ws }: { roomId: string; ws: WebSocket }) {
     newSelectedElem,
   ]);
 
+  useEffect(() => {
+    axios
+      .get(`http://localhost:8000/api/v1/chat/get/${roomId}`)
+      .then((response) => {
+        console.log(response);
+        const extractedChats = response.data.data.map(
+          (chat: { message: Element }) => ({
+            id: chat.message?.id,
+            dimension: chat.message?.dimension,
+            shape: chat.message?.shape,
+          })
+        );
+        setElements(extractedChats);
+      })
+      .catch((err) => console.log(err));
+  }, []);
+
   return (
     <>
       <div className="relative text-[#E0DFFF]">
@@ -744,6 +761,7 @@ function Canvas({ roomId, ws }: { roomId: string; ws: WebSocket }) {
           />
         </div>
         <ToolKit
+          roomId={roomId}
           shape={shape}
           setShape={setShape}
           setNewSelectedElem={setNewSelectedElem}
