@@ -1,14 +1,20 @@
 FROM node:20-alpine
 
-ARG DATABSE_URL
+ARG DATABASE_URL
 
-RUN node i pnpm -g
+RUN npm i -g pnpm
+WORKDIR /app
 
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install
 COPY . .
 
+
+ENV DATABASE_URL=${DATABASE_URL}
+
 RUN pnpm i
-RUN DATABASE_URL=$DATABSE_URL pnpm run db:generate
-RUN DATABASE_URL=$DATABSE_URL pnpm run build
+RUN pnpm run db:generate
+RUN pnpm run build
 
 EXPOSE 3000
 
