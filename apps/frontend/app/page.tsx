@@ -1,7 +1,7 @@
 "use client"
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, Pencil, Users, Sparkles, ArrowRight, Moon, Sun, MousePointer, Share2, Download, Menu, X } from 'lucide-react';
+import { ChevronRight, Pencil, Users, Sparkles, ArrowRight, Moon, Sun, MousePointer, Share2, Menu, X } from 'lucide-react';
 import Link from 'next/link';
 
 const Index = () => {

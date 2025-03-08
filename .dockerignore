@@ -1,10 +1,7 @@
-node_modules
+**/node_modules/
 .turbo
 .git
 .vscode
-apps/frontend/node_modules
-apps/http-backend/node_modules
-apps/ws-backend/node_modules
 dist
 build
 .env
