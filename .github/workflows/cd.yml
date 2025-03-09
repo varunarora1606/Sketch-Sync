@@ -31,7 +31,7 @@ jobs:
       # 2 thing missing
       - name: Deploy to VM
         run: |
-          echo "${{ secret. }}" &> ~/ssh_key
+          echo "${{ secret.ssh_key }}" &> ~/ssh_key
           cdmod 700 /home/runner/ssh_key
           ssh -o StrictHostKeyChecking=no -i ~/ssh_key root@ << "EOF"
             docker pull varunarora1606/collab-draw:${{ github.sha }}
