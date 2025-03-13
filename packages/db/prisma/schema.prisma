@@ -16,7 +16,7 @@ model User{
   chats       Chat[]
 }
 
-model Room {
+model Room { // Drawing
   id          String    @id         @default(uuid())
   name        String                @default("Untitled Canvas")
   createdAt   DateTime              @default(now())
@@ -35,3 +35,31 @@ model Chat {
   roomId      String
   room        Room      @relation(fields: [roomId], references: [id])
 }
+
+// model Element {
+//   id         String   @id @default(uuid())
+//   type       ElementType
+//   x          Float
+//   y          Float
+//   width      Float?
+//   height     Float?
+//   points     Json? // Used for lines/arrows (array of {x, y} points)
+//   text       String? // Used for text elements
+//   strokeColor String
+//   fillColor   String
+//   strokeWidth Int
+//   opacity     Float @default(1.0)
+//   angle       Float @default(0.0)
+//   roundness   Boolean @default(false) // For rounded rectangles, etc.
+//   groupId     String? // Grouping elements together
+//   createdAt   DateTime @default(now())
+//   updatedAt   DateTime @updatedAt
+// }
+
+// enum ElementType {
+//   RECTANGLE
+//   CIRCLE
+//   LINE
+//   ARROW
+//   TEXT
+// }
