@@ -511,8 +511,8 @@ function Canvas({ roomId, ws }: { roomId: string; ws: WebSocket }) {
         endWorld = screenToWorld(endX, endY);
         if (shape === "pencil") {
           points.push({
-            x: endWorld.x + Math.random() * 2 - 1,
-            y: endWorld.y + Math.random() * 2 - 1,
+            x: endWorld.x,
+            y: endWorld.y,
           });
         }
         draw(
