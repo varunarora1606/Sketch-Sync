@@ -180,7 +180,7 @@ const Dashboard = () => {
               className="bg-card border border-border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all"
             >
               <div className="relative group">
-                <Image
+                <img
                   src={`https://placehold.co/600x400/9b87f5/ffffff?text=${room.name}`}
                   alt={room.name}
                   className="w-full h-40 object-cover"

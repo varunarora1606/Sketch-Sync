@@ -6,7 +6,7 @@ import Link from 'next/link';
 
 const Index = () => {
   const [isScrolled, setIsScrolled] = useState(false);
-  const [isDark, setIsDark] = useState(true);
+  const [isDark, setIsDark] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [hoverFeature, setHoverFeature] = useState<number | null>(null);
 

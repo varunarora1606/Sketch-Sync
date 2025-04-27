@@ -4,7 +4,7 @@ import { WebSocket, WebSocketServer } from "ws";
 import jwt from "jsonwebtoken";
 import { createClient } from "redis";
 
-const client = createClient();
+const client = createClient({url: 'redis://localhost:6379'});
 const wss = new WebSocketServer({ port: 8080 });
 
 const rooms = new Map<string, Map<WebSocket, string>>();
@@ -104,9 +104,9 @@ client.on("error", (err) => {
   console.log("Redis error: ", err);
 });
 
-(() => {
+(async () => {
   try {
-    client.connect();
+    await client.connect();
     console.log("Connected to Redis");
   } catch (error) {
     console.error("Failed to connect to Redis", error);

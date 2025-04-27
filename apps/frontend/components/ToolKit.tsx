@@ -109,11 +109,11 @@ function ToolKit({
             router.push("/dashboard");
           }}
         >
-          <ArrowLeft size={20} />
+          <ArrowLeft size={24} />
         </button>}
         <input
           type="text"
-          className={`border-none outline-none bg-transparent shadow-none text-sm p-2.5 w-full h-full placeholder:text-current ${isAdmin? null: " cursor-pointer"}`}
+          className={`border-none outline-none bg-transparent shadow-none text- p-2.5 w-full h-full placeholder:text-current ${isAdmin? null: " cursor-pointer"}`}
           onKeyDown={handleNameEnter}
           onBlur={handleNameBlur}
           onFocus={handleNameFocus}
