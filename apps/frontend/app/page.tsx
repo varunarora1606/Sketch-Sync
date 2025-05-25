@@ -78,7 +78,7 @@ const Index = () => {
                     exit={{ opacity: 0, rotate: 30 }}
                     transition={{ duration: 0.2 }}
                   >
-                    {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                    {isDark ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
                   </motion.div>
                 </AnimatePresence>
               </motion.button>

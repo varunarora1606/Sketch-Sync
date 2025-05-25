@@ -24,16 +24,16 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          build-args:
-            - DATABASE_URL=${{ secrets.DATABASE_URL }}
+          build-args: |
+            DATABASE_URL=${{ secrets.DATABASE_URL }}
           tags: varunarora1606/collab-draw:${{ github.sha }}
 
       # 2 thing missing
       - name: Deploy to VM
         run: |
           echo "${{ secret.ssh_key }}" &> ~/ssh_key
-          cdmod 700 /home/runner/ssh_key
-          ssh -o StrictHostKeyChecking=no -i ~/ssh_key root@ << "EOF"
+          chmod 600 /home/runner/ssh_key
+          ssh -o StrictHostKeyChecking=no -i ~/ssh_key root@ << 'EOF'
             docker pull varunarora1606/collab-draw:${{ github.sha }}
             docker stop collab-draw
             docker run --name collab-draw --restart always -d -p 3000:3000 -p 8080:8080 -p 8000:8000 varunarora1606/collab-draw:${{ github.sha }}

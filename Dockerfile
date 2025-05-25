@@ -9,7 +9,6 @@ COPY package.json pnpm-lock.yaml ./
 RUN pnpm install
 COPY . .
 
-
 ENV DATABASE_URL=${DATABASE_URL}
 
 RUN pnpm i
